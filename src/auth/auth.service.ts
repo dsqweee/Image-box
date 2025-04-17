@@ -1,13 +1,10 @@
-import {
-  ConflictException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
-import { PrismaService } from 'src/prisma.service';
-import { LoginAuthDto } from './dto/login-auth.dto';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { PrismaService } from '../prisma.service';
+import { JwtService } from '@nestjs/jwt';
 import { RegisterAuthDto } from './dto/register-auth.dto';
 import { User } from '@prisma/client';
-import { JwtService } from '@nestjs/jwt';
+import { IUserToken } from './interfaces/user-token.interface';
+import { SafeUserDto } from './dto/safe-result.dto';
 
 @Injectable()
 export class AuthService {
@@ -16,48 +13,55 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async login(loginAuthDto: LoginAuthDto): Promise<{ access_token: string }> {
-    const auth = await this.prisma.user.findFirst({
+  async validateUser(
+    username: string,
+    password: string,
+  ): Promise<SafeUserDto | null> {
+    const userExist: User | null = await this.prisma.user.findFirst({
       where: {
-        username: loginAuthDto.username,
-        passwordHash: loginAuthDto.password,
+        username: username,
+        passwordHash: password,
       },
     });
 
-    if (!auth) {
-      throw new UnauthorizedException('Login or password is wrong!');
+    if (userExist) {
+      return new SafeUserDto(userExist.id, userExist.username);
+      /*const { passwordHash, ...userWithoutPassword } = userExist;
+      return userWithoutPassword;*/
     }
+    return null;
+  }
 
-    const payload = {
-      sub: auth.Id,
-      username: auth.username,
-    };
-    const access_token: string = await this.jwtService.signAsync(payload);
+  async login(user: User): Promise<IUserToken> {
+    const accessToken: string = await this.jwtService.signAsync({
+      sub: user.id,
+      username: user.username,
+    });
 
     return {
-      access_token: access_token,
+      id: user.id,
+      username: user.username,
+      access_token: accessToken,
     };
   }
 
-  async register(registerAuthDto: RegisterAuthDto): Promise<string> {
-    const auth: User | null = await this.prisma.user.findFirst({
+  async register(registerAuthDto: RegisterAuthDto): Promise<SafeUserDto> {
+    const user: User | null = await this.prisma.user.findFirst({
       where: {
         username: registerAuthDto.username,
-        passwordHash: registerAuthDto.password,
       },
     });
-
-    if (auth) {
-      throw new ConflictException('Username is already exists!');
+    if (user) {
+      throw new UnauthorizedException('username already exists');
     }
-
-    await this.prisma.user.create({
+    const createdUser: User = await this.prisma.user.create({
       data: {
         username: registerAuthDto.username,
         passwordHash: registerAuthDto.password,
       },
     });
-
-    return 'Successfully registered';
+    return new SafeUserDto(createdUser.id, createdUser.username);
+    /*const { passwordHash, ...userWithoutPassword } = createdUser;
+    return userWithoutPassword;*/
   }
 }

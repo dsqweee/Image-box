@@ -2,38 +2,39 @@ import {
   Body,
   Controller,
   Get,
-  HttpCode,
-  HttpStatus,
   Post,
-  Req,
+  Request,
   UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { LoginAuthDto } from './dto/login-auth.dto';
+import { LocalAuthGuard } from './guards/local-auth.guard';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RegisterAuthDto } from './dto/register-auth.dto';
-import { AuthGuard } from './auth.guard';
-import Payload from './guard.interface';
+import { User } from '@prisma/client';
+import { IJwtPayload } from './interfaces/jwt-payload.interface';
+import { IUserToken } from './interfaces/user-token.interface';
+import { SafeUserDto } from './dto/safe-result.dto';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private authService: AuthService) {}
 
-  @HttpCode(HttpStatus.OK)
+  @UseGuards(LocalAuthGuard)
   @Post('login')
-  async login(
-    @Body() loginAuthDto: LoginAuthDto,
-  ): Promise<{ access_token: string }> {
-    return await this.authService.login(loginAuthDto);
+  async login(@Request() req: Request & { user: User }): Promise<IUserToken> {
+    return await this.authService.login(req.user);
   }
 
   @Post('register')
-  async register(@Body() registerAuthDto: RegisterAuthDto): Promise<string> {
+  async register(
+    @Body() registerAuthDto: RegisterAuthDto,
+  ): Promise<SafeUserDto> {
     return await this.authService.register(registerAuthDto);
   }
 
-  @UseGuards(AuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Get('profile')
-  getProfile(@Req() req: Request & { user: Payload }) {
+  getProfile(@Request() req: Request & { user: IJwtPayload }): IJwtPayload {
     return req.user;
   }
 }
