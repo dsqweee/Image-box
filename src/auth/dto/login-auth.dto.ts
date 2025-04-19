@@ -21,8 +21,8 @@ export class LoginAuthDto {
   username: string;
 
   @IsString({ message: 'The password should be a string' })
-  @Length(3, 32, {
-    message: 'The password length should be between 3 and 32 characters long',
+  @Length(8, 32, {
+    message: 'The password length should be between 8 and 32 characters long',
   })
   @NotContains(' ', {
     message: 'The password must not contain spaces',
