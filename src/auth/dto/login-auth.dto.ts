@@ -1,19 +1,36 @@
-import { IsString, Length, Matches } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  Length,
+  Matches,
+  NotContains,
+} from 'class-validator';
 
 export class LoginAuthDto {
-  @IsString()
-  @Length(3, 32)
-  @Matches(/((?=.*\d)|(?=.*\W+))(?![.\n])(?=.*[A-Z])(?=.*[a-z]).*$/, {
-    message:
-      'username must contain uppercase, lowercase, number and special character',
+  @IsString({ message: 'The login should be a string' })
+  @Length(3, 32, {
+    message: 'The login length should be between 3 and 32 characters long',
+  })
+  @NotContains(' ', {
+    message: 'The login must not contain spaces',
+  })
+  @IsNotEmpty({ message: 'The login length should not be empty' })
+  @Matches(/^[a-zA-Z]+$/, {
+    message: 'Login must contain only Latin characters (A-Z, a-z)',
   })
   username: string;
 
-  @IsString()
-  @Length(8, 32)
-  @Matches(/((?=.*\d)|(?=.*\W+))(?![.\n])(?=.*[A-Z])(?=.*[a-z]).*$/, {
+  @IsString({ message: 'The password should be a string' })
+  @Length(3, 32, {
+    message: 'The password length should be between 3 and 32 characters long',
+  })
+  @NotContains(' ', {
+    message: 'The password must not contain spaces',
+  })
+  @IsNotEmpty({ message: 'The password length should not be empty' })
+  @Matches(/^[a-zA-Z0-9!@#$%^&*()_+\-=\\[\]{};':"\\|,.<>\\/?]*$/, {
     message:
-      'password must contain uppercase, lowercase, number and special character',
+      'The password must contain only Latin characters, numbers and special characters (A-Z, a-z) (0-9) (!@#$%^&*()_+-=[]{};\':"\\|,.<>/?)',
   })
   password: string;
 }
