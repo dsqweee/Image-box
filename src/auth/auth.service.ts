@@ -1,10 +1,16 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { RegisterAuthDto } from './dto/register-auth.dto';
 import { User } from '@prisma/client';
 import { IUserToken } from './interfaces/user-token.interface';
 import { SafeUserDto } from './dto/safe-result.dto';
+import * as bcrypt from 'bcrypt';
+import { LoginAuthDto } from './dto/login-auth.dto';
 
 @Injectable()
 export class AuthService {
@@ -13,26 +19,30 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async validateUser(
-    username: string,
-    password: string,
-  ): Promise<SafeUserDto | null> {
-    const userExist: User | null = await this.prisma.user.findFirst({
+  async localValidateUser(userData: LoginAuthDto): Promise<SafeUserDto | null> {
+    const userDb: User | null = await this.prisma.user.findFirst({
       where: {
-        username: username,
-        passwordHash: password,
+        username: userData.username,
       },
     });
 
-    if (userExist) {
-      return new SafeUserDto(userExist.id, userExist.username);
-      /*const { passwordHash, ...userWithoutPassword } = userExist;
-      return userWithoutPassword;*/
+    if (!userDb) {
+      throw new BadRequestException('Username or Password is incorrect');
     }
-    return null;
+
+    const validatePassword: boolean = await this.verifyingPassword(
+      userData.password,
+      userDb.passwordHash,
+    );
+
+    if (!validatePassword) {
+      throw new BadRequestException('Username or Password is incorrect');
+    }
+
+    return new SafeUserDto(userDb.id, userDb.username);
   }
 
-  async login(user: User): Promise<IUserToken> {
+  async login(user: SafeUserDto): Promise<IUserToken> {
     const accessToken: string = await this.jwtService.signAsync({
       sub: user.id,
       username: user.username,
@@ -45,6 +55,17 @@ export class AuthService {
     };
   }
 
+  async verifyingPassword(
+    inputPassword: string,
+    passwordHashed: string,
+  ): Promise<boolean> {
+    return await bcrypt.compare(inputPassword, passwordHashed);
+  }
+
+  async hashPassword(password: string): Promise<string> {
+    return bcrypt.hash(password, 10);
+  }
+
   async register(registerAuthDto: RegisterAuthDto): Promise<SafeUserDto> {
     const user: User | null = await this.prisma.user.findFirst({
       where: {
@@ -52,16 +73,19 @@ export class AuthService {
       },
     });
     if (user) {
-      throw new UnauthorizedException('username already exists');
+      throw new UnauthorizedException('Username already exists');
     }
+
+    const hashedPassword: string = await this.hashPassword(
+      registerAuthDto.password,
+    );
+
     const createdUser: User = await this.prisma.user.create({
       data: {
         username: registerAuthDto.username,
-        passwordHash: registerAuthDto.password,
+        passwordHash: hashedPassword,
       },
     });
     return new SafeUserDto(createdUser.id, createdUser.username);
-    /*const { passwordHash, ...userWithoutPassword } = createdUser;
-    return userWithoutPassword;*/
   }
 }

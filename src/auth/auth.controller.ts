@@ -10,7 +10,6 @@ import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RegisterAuthDto } from './dto/register-auth.dto';
-import { User } from '@prisma/client';
 import { IJwtPayload } from './interfaces/jwt-payload.interface';
 import { IUserToken } from './interfaces/user-token.interface';
 import { SafeUserDto } from './dto/safe-result.dto';
@@ -21,7 +20,10 @@ export class AuthController {
 
   @UseGuards(LocalAuthGuard)
   @Post('login')
-  async login(@Request() req: Request & { user: User }): Promise<IUserToken> {
+  async login(
+    @Request() req: Request & { user: SafeUserDto },
+  ): Promise<IUserToken> {
+    console.log('login-start ', req.user);
     return await this.authService.login(req.user);
   }
 
