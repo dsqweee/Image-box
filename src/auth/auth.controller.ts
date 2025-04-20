@@ -29,6 +29,7 @@ export class AuthController {
     return await this.authService.signIn(signInDto);
   }
 
+  @Public()
   @HttpCode(HttpStatus.OK)
   @Post('register')
   async register(

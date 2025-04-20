@@ -10,9 +10,9 @@ datasource db {
 model User {
   id Int @id @default(autoincrement())
   username String
-  passwordHash String
-  refreshToken String?
-  refreshTokenExpiryTime DateTime?
+  password String
+  age Int
+  createdAt DateTime @default(now())
 
   @@map("users")
 }
